@@ -1,0 +1,46 @@
+name: Publish to Github Package Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish to Github Packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.x
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@zeplin'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+      - name: Run post install scripts of dependencies
+        run: npm rebuild && npm run prepare --if-present
+
+      - name: Set version
+        run: npm version ${{ inputs.version }} --no-git-tag-version --no-commit-hooks
+
+      - name: Publish to registry
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
